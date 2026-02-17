@@ -1,0 +1,16 @@
+{
+  "name": "Is It Funny? - AI Humor Analyzer",
+  "short_name": "Is It Funny?",
+  "description": "Drop any joke and let AI rate how funny it is. Get explanations & tips to make it funnier!",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#667eea",
+  "theme_color": "#667eea",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>😂</text></svg>",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

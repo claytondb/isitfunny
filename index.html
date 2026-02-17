@@ -5,6 +5,20 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Is It Funny? - AI Humor Analyzer</title>
     <meta name="description" content="Use AI to analyze if a joke is funny. Get explanations, ratings, and suggestions to make it funnier.">
+    
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:title" content="Is It Funny? - AI Humor Analyzer">
+    <meta property="og:description" content="Drop any joke and let AI rate how funny it is (1-10). Get explanations & tips to make it funnier! 😂">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="https://isitfunny.app/og-image.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Is It Funny? - AI Humor Analyzer">
+    <meta name="twitter:description" content="Drop any joke and let AI rate how funny it is (1-10). Get explanations & tips to make it funnier! 😂">
+    
+    <!-- PWA -->
+    <meta name="theme-color" content="#667eea">
+    <link rel="manifest" href="manifest.json">
+    
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         * {
@@ -185,6 +199,89 @@
             margin-top: 10px;
         }
 
+        /* Share buttons */
+        .share-section {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding-top: 25px;
+            margin-top: 25px;
+            border-top: 1px solid #eee;
+        }
+
+        .share-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: white;
+        }
+
+        .share-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+
+        .share-btn.twitter { background: #1DA1F2; }
+        .share-btn.copy { background: #667eea; }
+        .share-btn.copy.copied { background: #27ae60; }
+
+        /* History section */
+        .history-section {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px solid #eee;
+        }
+
+        .history-section h4 {
+            font-size: 0.9rem;
+            color: #888;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .history-item:hover { background: #eee; }
+
+        .history-joke {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-size: 0.9rem;
+            color: #555;
+            margin-right: 10px;
+        }
+
+        .history-rating {
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: #667eea;
+            color: white;
+        }
+
         /* Examples */
         .examples {
             margin-top: 20px;
@@ -321,6 +418,23 @@
                 <h3>🚀 How to Make It Funnier</h3>
                 <div id="suggestions" class="suggestion-box"></div>
             </div>
+
+            <div class="share-section">
+                <button id="share-twitter" class="share-btn twitter">
+                    <span>𝕏</span> Share on X
+                </button>
+                <button id="share-copy" class="share-btn copy">
+                    📋 Copy Result
+                </button>
+            </div>
+        </div>
+
+        <!-- History card -->
+        <div id="history-card" class="card" style="display:none">
+            <div class="history-section" style="border-top:none; padding-top:0; margin-top:0">
+                <h4>📜 Recent Jokes</h4>
+                <div id="history-list"></div>
+            </div>
         </div>
     </div>
 
@@ -334,6 +448,61 @@
         const loadingEl = document.getElementById('loading');
         const resultEl = document.getElementById('result');
         const apiKeyInput = document.getElementById('api-key');
+        
+        // Track current joke/rating for sharing
+        let currentJoke = '';
+        let currentRating = 0;
+        let currentRatingText = '';
+
+        // History management
+        function getHistory() {
+            try {
+                return JSON.parse(localStorage.getItem('jokeHistory') || '[]');
+            } catch { return []; }
+        }
+
+        function saveToHistory(joke, rating) {
+            const history = getHistory();
+            // Avoid duplicates
+            const existing = history.findIndex(h => h.joke === joke);
+            if (existing !== -1) history.splice(existing, 1);
+            // Add to front
+            history.unshift({ joke, rating, time: Date.now() });
+            // Keep only last 10
+            while (history.length > 10) history.pop();
+            localStorage.setItem('jokeHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const history = getHistory();
+            const historyCard = document.getElementById('history-card');
+            const historyList = document.getElementById('history-list');
+            
+            if (history.length === 0) {
+                historyCard.style.display = 'none';
+                return;
+            }
+            
+            historyCard.style.display = 'block';
+            historyList.innerHTML = history.slice(0, 5).map(h => `
+                <div class="history-item" data-joke="${h.joke.replace(/"/g, '&quot;')}">
+                    <span class="history-joke">${h.joke}</span>
+                    <span class="history-rating">${h.rating}/10</span>
+                </div>
+            `).join('');
+            
+            // Click to reload joke
+            historyList.querySelectorAll('.history-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    jokeInput.value = item.dataset.joke;
+                    jokeInput.focus();
+                });
+            });
+        }
+
+        // Initialize history on load
+        renderHistory();
 
         // Example buttons
         document.querySelectorAll('.example-btn').forEach(btn => {
@@ -508,6 +677,14 @@
         function displayResult(result) {
             const rating = Math.max(1, Math.min(10, Math.round(result.rating)));
             
+            // Track for sharing
+            currentJoke = jokeInput.value.trim();
+            currentRating = rating;
+            currentRatingText = ratingTexts[rating];
+            
+            // Save to history
+            saveToHistory(currentJoke, rating);
+            
             // Rating
             const ratingEl = document.getElementById('rating-value');
             ratingEl.textContent = rating + '/10';
@@ -528,6 +705,39 @@
             // Show
             resultEl.classList.add('active');
             resultEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // Share functionality
+        document.getElementById('share-twitter').addEventListener('click', () => {
+            const text = `My joke scored ${currentRating}/10 ${currentRatingText}\n\n"${currentJoke.substring(0, 100)}${currentJoke.length > 100 ? '...' : ''}"\n\nRate your jokes:`;
+            const url = 'https://isitfunny.app';
+            window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank');
+        });
+
+        document.getElementById('share-copy').addEventListener('click', async () => {
+            const btn = document.getElementById('share-copy');
+            const text = `😂 Is It Funny? Rating: ${currentRating}/10 ${currentRatingText}\n\n"${currentJoke}"\n\nTry it: https://isitfunny.app`;
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.classList.add('copied');
+                btn.innerHTML = '✓ Copied!';
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = '📋 Copy Result';
+                }, 2000);
+            } catch {
+                // Fallback for older browsers
+                prompt('Copy this:', text);
+            }
+        });
+
+        // Check for shared joke in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const sharedJoke = urlParams.get('joke');
+        if (sharedJoke) {
+            jokeInput.value = sharedJoke;
+            setTimeout(() => analyzeBtn.click(), 500);
         }
     </script>
 </body>
